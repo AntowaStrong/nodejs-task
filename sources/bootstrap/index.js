@@ -4,12 +4,14 @@ const server = require('./server')
 const models = require('../src/models')
 const config = require('../config')
 
-let bootstraped = false 
+let started = false 
 
-let bootstrap = () => {
-  if (bootstraped) {
+let start = () => {
+  if (started) {
     return
   }
+
+  console.log('App starting...')
 
   app.use(require('../src/routes'))
 
@@ -17,7 +19,7 @@ let bootstrap = () => {
     console.log('App started on port: ' + config.port)
   })
 
-  bootstraped = true
+  started = true
 }
 
 module.exports = { 
@@ -25,5 +27,5 @@ module.exports = {
   app,
   server,
   models,
-  bootstrap
+  start
 }

@@ -1,8 +1,9 @@
-const config        = require('../config')
-const { isNull }    = require('lodash')
-const { Sequelize } = require('sequelize')
+const config = require('./index')
 
 let settings = {
+  config.mysql.name,
+   config.mysql.username, 
+   config.mysql.password, 
   logging: config.mysql.debug ? console.log : false,
   dialect: config.mysql.dialect
 }
@@ -21,6 +22,10 @@ if (!isNull(config.mysql.port)) {
   settings.port = config.mysql.port
 }
 
-const db = new Sequelize(config.mysql.name, config.mysql.username, config.mysql.password, settings)
+module.exports = {
+  test: settings,
+  production: settings,
+  development: settings
+}
 
-module.exports = db
+
