@@ -36,6 +36,7 @@ const config = {
   cert: variable('CERT', null),
   key: variable('KEY', null),
   port: variable('PORT', 8118),
+  secret: variable('SECRET', 'SECRETKEY'),
   mysql: {
     name: variable('MYSQL_NAME', null),
     host: variable('MYSQL_HOST', 'localhost'),

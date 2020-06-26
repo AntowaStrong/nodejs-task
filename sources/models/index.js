@@ -1,7 +1,7 @@
-const db = require('../../bootstrap/db')
+const db = require('../app/db')
 
-const UserModel  = require('./user')
-const FileModel  = require('./file')
+const UserModel  = require('./user.model')
+const FileModel  = require('./file.model')
 // const TokenModel = require('./token')
 
 // UserModel.hasMany(TokenModel, { foreignKey: 'uid' })

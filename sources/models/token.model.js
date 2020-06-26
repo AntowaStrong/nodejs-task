@@ -1,4 +1,4 @@
-const db            = require('../../bootstrap/db')
+const db            = require('../app/db')
 const { Sequelize } = require('sequelize')
 
 const TokenModel = db.define('Token', 

@@ -1,4 +1,4 @@
-const db            = require('../../bootstrap/db')
+const db            = require('../app/db')
 const { Sequelize } = require('sequelize')
 
 const FileModel = db.define('File', 
@@ -16,7 +16,12 @@ const FileModel = db.define('File',
   },
   {
     tableName: 'file',
-    timestamps: true
+    timestamps: true,
+    instanceMethods: {
+      getContent: () => {
+        
+      }
+    }
   }
 )
 
