@@ -1,11 +1,13 @@
 process.env.NODE_ENV = 'test'
 
-const chai           = require('chai')
-const chaiHttp       = require('chai-http')
-const { app, start } = require('../app')
-const should = chai.should()
-const { each }       = require('lodash')
-const { UserModel }  = require('../models')
+const chai                      = require('chai')
+const path                      = require('path')
+const should                    = chai.should()
+const { MD5 }                   = require('crypto-js')
+const { each }                  = require('lodash')
+const chaiHttp                  = require('chai-http')
+const { app, start }            = require('../app')
+const { UserModel, FileModel }  = require('../models')
 
 chai.use(chaiHttp)
 
@@ -16,50 +18,100 @@ const validCredentials = {
   password: 'Passw0rd'
 }
 
-let files = []
+const tokens = {
+  access: null
+} 
+
+const filename = MD5('filetest' + (new Date()).getTime()).toString() + '.jpeg'
 
 describe('*********** FILE ***********', () => {
-  chai.request(app).post('/singup').send(validCredentials).end(function (err, res) {
+  before(() => {
+    return new Promise((resolve) => {
+      chai
+        .request(app)
+        .post('/singup')
+        .send(validCredentials)
+        .end((err, res) => {
+          tokens.access = res.body.data.access 
 
-    describe('/POST /upload', () => {
-      it('Upload: valid', (done) => {
+          resolve()
+        })
+    })
+  })
+
+  it('AUTH TEST', (done) => {
+    chai
+      .request(app)
+      .get('/file/list')
+      .end((err, res) => {
+        res.should.have.status(403)
+        
+        done()
+    })
+  })
+
+  describe('/POST /file/upload', () => {
+    it('Upload: valid', (done) => {
+      chai
+        .request(app)
+        .post('/file/upload')
+        .attach('file', path.resolve(__dirname, './assets/test-1.jpeg'), filename)
+        .set('Authorization', 'Bearer ' + tokens.access)
+        .end((err, res) => {
+          res.should.have.status(200)
+          
+          done()
+      })
+    })
+  })
+
+  describe('/GET /file/list', () => {
+    it('List: valid', (done) => {
+      chai
+        .request(app)
+        .get('/file/list')
+        .set('Authorization', 'Bearer ' +  tokens.access)
+        .end((err, res) => {
+          res.should.have.status(200)
+          res.body.should.be.an('object')
+          
+          done()
+      })
+    })
+  })
+
+  describe('/PUT /file/update', () => {
+    it('Update: valid', (done) => {
+      FileModel.findOne({
+        where: {
+          name: filename
+        }
+      }).then((file) => {
         chai
           .request(app)
-          .post('/upload')
-          .attach('file', './assets/test-1.img', 'test-1.img')
-          .set('Authorization', 'Bearer ' + res.body.token)
+          .put('/file/update/' + file.id)
+          .attach('file', path.resolve(__dirname, './assets/test-2.jpeg'), filename)
+          .set('Authorization', 'Bearer ' +  tokens.access)
           .end((err, res) => {
             res.should.have.status(200)
-           
+
             done()
         })
       })
     })
+  })
 
-    describe('/GET /list', () => {
-      it('List: valid', (done) => {
+  describe('/POST /file/download', () => {
+    it('Download: valid', (done) => {
+      FileModel.findOne({
+        where: {
+          name: filename
+        }
+      }).then((file) => {
         chai
           .request(app)
-          .get('/list')
-          .set('Authorization', 'Bearer ' + res.body.token)
-          .end((err, res) => {
-            res.should.have.status(200)
-            res.body.should.be.an('array')
-
-            files = res.body.data.files
-           
-            done()
-        })
-      })
-    })
-
-    describe('/PUT /update', () => {
-      it('Update: valid', (done) => {
-        chai
-          .request(app)
-          .put('/update/' + files[0].id)
-          .attach('file', './assets/test-2.img', 'test-2.img')
-          .set('Authorization', 'Bearer ' + res.body.token)
+          .get('/file/download/' + file.id)
+          .set('Authorization', 'Bearer ' +  tokens.access)
           .end((err, res) => {
             res.should.have.status(200)
 
@@ -67,28 +119,21 @@ describe('*********** FILE ***********', () => {
         })
       })
     })
+  })
 
-    describe('/POST /download', () => {
-      it('Download: valid', (done) => {
+  describe('/DELETE /file/delete', () => {
+    it('Delete: valid.', (done) => {
+      FileModel.findOne({
+        where: {
+          name: filename
+        }
+      }).then((file) => {
         chai
           .request(app)
-          .get('/download/' + files[0].id)
-          .set('Authorization', 'Bearer ' + res.body.token)
+          .delete('/file/delete/' + file.id)
+          .set('Authorization', 'Bearer ' +  tokens.access)
           .end((err, res) => {
-            res.should.have.status(200)
-
-            done()
-        })
-      })
-    })
-
-    describe('/DELETE /delete', () => {
-      it('Delete: valid.', (done) => {
-        chai
-          .request(app)
-          .delete('/delete/' + files[0].id)
-          .set('Authorization', 'Bearer ' + res.body.token)
-          .end((err, res) => {
+            console.log(res.text)
             res.should.have.status(200)
 
             done()

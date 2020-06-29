@@ -27,7 +27,7 @@ router.use((request, response, next) => {
 })
 
 router.use(authRoute)
-router.use('/', auth, userRoute)
+router.use('/', userRoute)
 router.use('/file', auth, fileRoute)
 
 router.use('*', (request, response) => {

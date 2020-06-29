@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "app": "node index",
-    "test": "mocha",
+    "test": "mocha --exit",
     "migrations": "npx sequelize-cli db:migrate"
   },
   "author": "",

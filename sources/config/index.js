@@ -47,7 +47,7 @@ const config = {
     socketpath: variable('MYSQL_SOCKETPATH', null),
     debug: variable('MYSQL_DEBUG', false),
   },
-  directory: path.resolve('../')
+  directory: path.resolve('./')
 }
 
 module.exports = config

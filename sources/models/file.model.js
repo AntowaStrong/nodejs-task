@@ -3,26 +3,26 @@ const db                                   = require('../app/db')
 const { MD5 }                              = require('crypto-js')
 const { isNull }                           = require('lodash')
 const { Sequelize, Model }                 = require('sequelize')
-const { getExtensionFromFIle }             = require('../utils')
+const { getExtensionFromFile }             = require('../utils')
 const { buildPath, fileExist, removeFile } = require('../utils/file.util')
 
 let store = async (model, file) => {
   let { name, size, mimetype: type } = file
 
-  let extension = getExtensionFromFIle(name) 
+  let extension = getExtensionFromFile(name) 
   let hash      = MD5((new Date()).getTime() + size + type + name).toString()
   let path      = 'public/' + hash + (extension ? '.' + extension : '')
   let fullpath  = buildPath(path)
- 
+
   try {
     if (model.fullpath()) {
       removeFile(model.fullpath()) 
     }
 
-    await file.mv(fullpath) 
+    await file.mv(fullpath)  
 
     model.set({
-      mame,
+      name,
       path,
       type, 
       size,
@@ -33,6 +33,7 @@ let store = async (model, file) => {
 
     return model
   } catch (e) {
+    console.log(e)
     return null
   }
 }
@@ -54,9 +55,9 @@ const FileModel = db.define('File',
     tableName: 'file',
     timestamps: true,
     hooks: {
-      beforeDestroy: function () {
-        if (isNull(this.path)) {
-          removeFile(this.path)
+      beforeDestroy: function (file) {
+        if (file.fullpath()) {
+          removeFile(file.fullpath())
         }
       }
     }
@@ -82,7 +83,7 @@ FileModel.resolveModel = async function (model) {
     return model
   }  
 
-  return await this.findOne(model)
+  return await this.findOne({ where: model })
 }
 
 FileModel.prototype.fullpath = function () {

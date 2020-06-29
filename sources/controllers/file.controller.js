@@ -1,6 +1,6 @@
-const Joi                       = require('@hapi/joi') 
-const { FileModel }             = require('../models')
-const { map, has, isUndefined } = require('lodash')
+const Joi                               = require('@hapi/joi') 
+const { FileModel }                     = require('../models')
+const { map, has, isEmpty, isUndefined} = require('lodash')
 
 const validateFile = (parameters) => {
   let size = 100 * 1000000 
@@ -13,7 +13,7 @@ const validateFile = (parameters) => {
     mimetype: isEmpty(types) ? type : type.valid(...types)
   })
 
-  return isUndefined(scheme.validate(parameters))
+  return isUndefined(scheme.validate(parameters, { allowUnknown: true }).error)
 }
 
 const validateID = (parameters) => {
@@ -26,7 +26,7 @@ const validateID = (parameters) => {
 
 module.exports = {
   upload: async (request, response) => {
-    if (!has(request.files, 'file') || !validateFile(file)) {
+    if (!has(request.files, 'file') || !validateFile(request.files.file)) {
       return response.fail('WRONG_PARAMETERS')
     }
 
@@ -39,19 +39,21 @@ module.exports = {
 
       response.success()
     } catch (e) {
-      return response.fail()
+      return response.fail(e.message)
     }
   },
   list: async (request, response) => {
-    let { value: {page, list_size: size} } = Joi.validate(request.query, Joi.object({
+    let scheme = Joi.object({
       page: Joi.number().min(1).default(1).failover(1),
       list_size: Joi.number().min(1).max(10).default(10).failover(10)
-    }))
+    })
+
+    let { value: {page, list_size: size} } = scheme.validate(request.query)
     
     try {
       let files = await FileModel.findAll({
         limit: size,
-        offset: size * page,
+        offset: size * (page - 1),
         order: [
           ['id', 'ASC'],
         ]
@@ -61,7 +63,7 @@ module.exports = {
         files: map(files, file => file.format())
       })
     } catch (e) {
-      return response.fail()
+      return response.fail(e.message)
     }
   },
   delete: async (request, response) => {
@@ -70,20 +72,22 @@ module.exports = {
     }
 
     try {
-      let file = FileModel.findOne({
-        id: request.params.id
+      let file = await FileModel.findOne({
+        where: {
+          id: request.params.id
+        }
       })
 
       if (!file) {
         response.fail('FILE_NOT_FOUND')
       }
 
-      file.destroy()
+      await file.destroy()
 
       response.success()
 
      } catch (e) {
-      return response.fail()
+      return response.fail(e.message)
     }
   },
   download: async (request, response) => {
@@ -96,7 +100,9 @@ module.exports = {
 
     try {
       let file = await FileModel.findOne({
-        id: request.params.id
+        where: {
+          id: request.params.id
+        }
       })
 
       if (!file || !file.fullpath()) {
@@ -105,7 +111,7 @@ module.exports = {
 
       response.download(file.fullpath(), file.name)
     } catch (e) {
-      return response.fail()
+      return response.fail(e.message)
     }
   },
   update: async (request, response) => {
@@ -116,7 +122,7 @@ module.exports = {
       })
     }
     
-    if (!has(request.files, 'file') || !validateFile(file)) {
+    if (!has(request.files, 'file') || !validateFile(request.files.file)) {
       response.fail('FILE_NOT_FOUND')
     }
 
@@ -129,7 +135,7 @@ module.exports = {
 
       response.success()
     } catch (e) {
-      return response.fail()
+      return response.fail(e.message)
     }
   }
 }

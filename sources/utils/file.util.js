@@ -2,20 +2,22 @@ const fs            = require('fs')
 const path          = require('path')
 const { directory } = require('../config')
 
-module.exports = {
-  buildPath: () => {
-    args = [...arguments]
+let fileExist = (path) => {
+  try {
+    return fs.existsSync(path)
+  } catch(e) {
+    return false
+  }
+}
 
-    args.shift(directory)
+module.exports = {
+  fileExist,
+  buildPath: function () {
+    let args = [...arguments]
+
+    args.unshift(directory)
 
     return path.resolve(...args)
-  },
-  fileExist: async (path) => {
-    try {
-      return fs.existsSync(path)
-    } catch(e) {
-      return false
-    }
   },
   removeFile: (path) => {
     if (!fileExist(path)) {

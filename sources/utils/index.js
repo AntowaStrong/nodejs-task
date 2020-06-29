@@ -1,4 +1,4 @@
-const { isNull, isString } = require('lodash')
+const { isNull, isString, last } = require('lodash')
 
 module.exports = { 
   sequelizeOptionsFromConfig: (config) => {
@@ -31,8 +31,8 @@ module.exports = {
       return null
     }
 
-   let parts = name.split('.')
-
+    let parts = name.split('.')
+  
     return parts.length === 1 ? null : last(parts)
   }
 }

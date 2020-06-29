@@ -17,7 +17,7 @@ const validCredentials = {
 }
 
 const tokens = {
-  access: null,
+  access: null
 } 
 
 describe('*********** USER ***********', () => {
