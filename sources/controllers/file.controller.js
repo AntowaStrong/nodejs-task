@@ -1,171 +1,90 @@
-const { md5 }       = require('crypto-js')
-const { FileModel } = require('../models')
-const { map, has }  = require('lodash')
-const path =  require('path')
-var fs = require('fs')
+const Joi                       = require('@hapi/joi') 
+const { FileModel }             = require('../models')
+const { map, has, isUndefined } = require('lodash')
 
-
-const validateFile = (file) => {
+const validateFile = (parameters) => {
+  let size = 100 * 1000000 
   let types = []
-  let size = null
 
-  
-  res = Joi.validate(file, Joi.object({
-    size: Joi,
-    mimetype: Joi
-  }))
+  let type = Joi.string().valid(...types).required()
 
-  return true
+  let scheme = Joi.object({
+    size: Joi.number().max(size).required(),
+    mimetype: isEmpty(types) ? type : type.valid(...types)
+  })
+
+  return isUndefined(scheme.validate(parameters))
 }
 
-const validateID = () => {
-  Joi.validate(request.params, Joi.object({
+const validateID = (parameters) => {
+  let scheme = Joi.object({
     id: Joi.number().required()
-  }))
+  })
 
-  return true
-}
-
-const getExtensionFromFIle = () => {
-
-  
+  return isUndefined(scheme.validate(parameters).error)
 }
 
 module.exports = {
   upload: async (request, response) => {
-    let files = request.files
-    let saved = []
-
-    if (isEmpty(request.files)) {
-      return response.status(400).json({
-        success: false,
-        error: 'No Files'
-      })
+    if (!has(request.files, 'file') || !validateFile(file)) {
+      return response.fail('WRONG_PARAMETERS')
     }
 
     try {
-      saved = await Promise.all(map(files, 
-        (file, name) => {
+      let file = await FileModel.storeFile(request.files.file)
 
-          return async () => {
-            if (!validateFile(file)) {
-              return { [name]: false }
-            }
+      if (!file) {
+        return response.fail('FILE_CANT_BE_SAVED')
+      }
 
-            let { name, size, mimetype: type } = file
-
-            let extension = getExtensionFromFIle(name) 
-            let hash      = md5((new Date()).getTime() + size + type + name)
-            let path      = path.resolve(__dirname, '../public', hash + (extension ? '.' + extension : ''))
-
-            try  {
-              await file.mv(path)
-            } catch (e) {
-              return { [name]: false } 
-            }
-
-            try {
-              await FileModel.create({
-                name,
-                path,
-                type,
-                size,
-                extension
-              })
-            } catch (e) {
-              return { [name]: false } 
-            }
-
-            return { [name]: true }
-          }
-        })
-      )
+      response.success()
     } catch (e) {
-      return response.status(200).json({
-        status: false,
-        error: 'Something wronk'
-      })
+      return response.fail()
     }
-
-    response.status(200).json({
-      success: true,
-      data: saved
-    })
   },
   list: async (request, response) => {
     let { value: {page, list_size: size} } = Joi.validate(request.query, Joi.object({
       page: Joi.number().min(1).default(1).failover(1),
       list_size: Joi.number().min(1).max(10).default(10).failover(10)
     }))
-
-    let files = []
     
     try {
-      files = await FileModel.findAll({
+      let files = await FileModel.findAll({
         limit: size,
         offset: size * page,
         order: [
           ['id', 'ASC'],
         ]
       })
-    } catch (e) {
-      return response.status(400).json({
-        success: false,
-        error: 'Bad'
-      })
-    }
 
-    return response.status(200).json({
-      success: true, 
-      data: {
-        files: map(files, file => file.get({ plain: true }))
-      }
-    })
+      response.success({
+        files: map(files, file => file.format())
+      })
+    } catch (e) {
+      return response.fail()
+    }
   },
   delete: async (request, response) => {
     if (!validateID(request.params)) {
-      return response.status(400).json({
-        success: false,
-        error: 'text'
-      })
+      return response.fail('WRONG_PARAMETERS')
     }
-    
-    let file = null
 
     try {
-      file = FileModel.findOne({
-         id: request.params.id
-       })
-     } catch (e) {
-      return response.status(400).json({
-        success: false,
-        error: 'text'
+      let file = FileModel.findOne({
+        id: request.params.id
       })
-    }
 
-    // check if file exist 
-    try  {
-      fs.unlinkSync(file.path)
-    } catch (e) {
-      return response.status(400).json({
-        success: false,
-        error: 'text'
-      })
-    }
+      if (!file) {
+        response.fail('FILE_NOT_FOUND')
+      }
 
-    try  {
       file.destroy()
-    } catch (e) {
-      return response.status(400).json({
-        success: false,
-        error: 'text'
-      })
-    }
 
-    response.status(400).json({
-      success: true,
-      data: []
-    })
+      response.success()
+
+     } catch (e) {
+      return response.fail()
+    }
   },
   download: async (request, response) => {
     if (!validateID(request.params)) {
@@ -175,82 +94,42 @@ module.exports = {
       })
     }
 
-    let file = null
-
     try {
-     file = FileModel.findOne({
+      let file = await FileModel.findOne({
         id: request.params.id
       })
-    } catch (e) {
-      return response.status(400).json({
-        success: false,
-        error: 'text'
-      })
-    }
 
-    // check if file exist 
-    response.download(file.path, file.name)
+      if (!file || !file.fullpath()) {
+        response.fail('FILE_NOT_FOUND')
+      }
+
+      response.download(file.fullpath(), file.name)
+    } catch (e) {
+      return response.fail()
+    }
   },
   update: async (request, response) => {
-    if (!validateID(request.params) || !validateFile(request.files.file)) {
+    if (!validateID(request.params)) {
       return response.status(400).json({
         success: false,
         error: 'text'
       })
     }
     
-    let file = null
+    if (!has(request.files, 'file') || !validateFile(file)) {
+      response.fail('FILE_NOT_FOUND')
+    }
 
     try {
-      file = FileModel.findOne({
-        id: request.params.id
-      })
+      let file = await FileModel.updateFile({ id: request.params.id }, request.files.file)
+
+      if (!file) {
+        response.fail('FILE_CANT_BE_UPDATED')
+      }
+
+      response.success()
     } catch (e) {
-      return response.status(400).json({
-        success: false,
-        error: 'text'
-      })
+      return response.fail()
     }
-
-    let { name, size, mimetype: type } = request.files.file
-
-    let extension = getExtensionFromFIle(name) 
-    let hash      = md5((new Date()).getTime() + size + type + name)
-    let path      = path.resolve(__dirname, '../public', hash + (extension ? '.' + extension : ''))
-
-    try  {
-      await request.files.file.mv(path)
-    } catch (e) {
-      return { [name]: false } 
-    }
-
-    try  {
-      fs.unlinkSync(request.files.file.path)
-    } catch (e) {
-      return response.status(400).json({
-        success: false,
-        error: 'text'
-      })
-    }
-
-    file.name = name
-    file.path = path
-    file.type = type
-    file.size = size
-    file.extension = extension
-
-    try  {
-      await file.save()
-    } catch (e) {
-      return response.status(400).json({
-        success: false,
-        error: 'text'
-      })
-    }
-    
-    return response.status(200).json({
-      success: true,
-      data: []
-    })
   }
 }

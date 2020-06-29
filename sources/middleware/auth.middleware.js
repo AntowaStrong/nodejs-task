@@ -1,7 +1,5 @@
-
-const { decode }        = require('../app/jwt')
-const { UserModel }     = require('../models')
-const { has, isString } = require('lodash')
+const { isString }              = require('lodash')
+const { UserModel, TokenModel } = require('../models')
 
 const RegExp = /(\S+)\s+(\S+)/
 const SCHEME = 'bearer'
@@ -24,50 +22,42 @@ const parse = (request) => {
 } 
 
 module.exports = async (request, response, next) => {
-  let user    = null
-  let payload = null 
-
   try {
-    payload = decode(parse(request)) 
-  } catch (e) {
-    return response.status(403).json({
-      errors: {
-        msg: e.name
-      }
-    }) 
-  }
+    let token = parse(request)
 
-  if (!has(payload, 'id')) {
-    return response.status(403).json({
-      errors: {
-        msg: 'WronkPayload'
-      }
-    }) 
-  }
+    request.token = token
 
-  try {
-    user = await UserModel.findOne(
+    token = await TokenModel.findOne({ 
+      where: {
+        valid: true,
+        token: token
+      }
+    })
+
+    if (!token) {
+      return response.fail('INVALID_TOKEN', 403) 
+    }
+
+    if (!token.validate()) {
+      await token.invalidate()
+
+      return response.fail('INVALID_TOKEN', 403) 
+    } 
+
+    let user = await UserModel.findOne(
       {
-        id: payload.id
+        uid: token.uid
       }
     )
+
+    if (!user) {
+      return response.fail('USER_NOT_FOUND', 403) 
+    }
+
+    request.user  = user
+    
+    next()
   } catch (e) {
-    return response.status(403).json({
-      errors: {
-        msg: 'userNtf'
-      }
-    }) 
+    return response.fail(e.message, 403) 
   }
-
-  if (!user) {
-    return response.status(403).json({
-      errors: {
-        msg: 'userNtf'
-      }
-    }) 
-  } 
-
-  request.user = user
-
-  next()
 }

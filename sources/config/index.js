@@ -1,3 +1,4 @@
+const path                 = require('path')
 const dotenv               = require('dotenv')
 const parseArgs            = require('minimist')
 const { has, isUndefined } = require('lodash')
@@ -36,7 +37,6 @@ const config = {
   cert: variable('CERT', null),
   key: variable('KEY', null),
   port: variable('PORT', 8118),
-  secret: variable('SECRET', 'SECRETKEY'),
   mysql: {
     name: variable('MYSQL_NAME', null),
     host: variable('MYSQL_HOST', 'localhost'),
@@ -46,7 +46,8 @@ const config = {
     dialect: variable('MYSQL_DIALECT', 'mysql'),
     socketpath: variable('MYSQL_SOCKETPATH', null),
     debug: variable('MYSQL_DEBUG', false),
-  }
+  },
+  directory: path.resolve('../')
 }
 
 module.exports = config

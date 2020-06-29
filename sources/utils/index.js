@@ -1,4 +1,4 @@
-const { isNull } = require('lodash')
+const { isNull, isString } = require('lodash')
 
 module.exports = { 
   sequelizeOptionsFromConfig: (config) => {
@@ -25,5 +25,14 @@ module.exports = {
     }
 
     return settings
+  },
+  getExtensionFromFile: (name) => {
+    if (!isString(name)) {
+      return null
+    }
+
+   let parts = name.split('.')
+
+    return parts.length === 1 ? null : last(parts)
   }
 }

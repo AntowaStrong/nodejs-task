@@ -1,4 +1,5 @@
 const db            = require('../app/db')
+const { md5 }       = require('crypto-js')
 const { Sequelize } = require('sequelize')
 
 const UserModel = db.define('User', 
@@ -15,11 +16,19 @@ const UserModel = db.define('User',
     password: {
       type: Sequelize.STRING(32),
       allowNull: false,
+      set: () => {
+        this.setDataValue('name', md5(password))
+      }
     }
   },
   {
     tableName: 'user',
     timestamps: false,
+    instanceMethods: {
+      checkPassword: (password) => {
+        return this.password === md5(password)
+      }
+    }
   }
 )
 
