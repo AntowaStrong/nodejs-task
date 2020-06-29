@@ -3,6 +3,9 @@ process.env.NODE_ENV = 'test'
 const chai           = require('chai')
 const chaiHttp       = require('chai-http')
 const { app, start } = require('../app')
+const should = chai.should()
+const { each }       = require('lodash')
+const { UserModel }  = require('../models')
 
 chai.use(chaiHttp)
 
@@ -92,6 +95,26 @@ describe('*********** FILE ***********', () => {
         })
       })
     })
+  })
+
+  after(async () => {
+    try {
+      let users = await UserModel.findAll({ 
+        where: {
+          id: validCredentials.id
+        }
+      })
+
+      let remove = []
+
+      each(users, (user) => {
+        remove.push(user.destroy())
+      })
+
+      await Promise.allSettled(remove)
+    } catch (e) {
+      console.log(e)
+    }
   })
 })
 

@@ -1,6 +1,6 @@
 
 const db                                   = require('../app/db')
-const { md5 }                              = require('crypto-js')
+const { MD5 }                              = require('crypto-js')
 const { isNull }                           = require('lodash')
 const { Sequelize, Model }                 = require('sequelize')
 const { getExtensionFromFIle }             = require('../utils')
@@ -10,7 +10,7 @@ let store = async (model, file) => {
   let { name, size, mimetype: type } = file
 
   let extension = getExtensionFromFIle(name) 
-  let hash      = md5((new Date()).getTime() + size + type + name)
+  let hash      = MD5((new Date()).getTime() + size + type + name).toString()
   let path      = 'public/' + hash + (extension ? '.' + extension : '')
   let fullpath  = buildPath(path)
  
@@ -54,54 +54,55 @@ const FileModel = db.define('File',
     tableName: 'file',
     timestamps: true,
     hooks: {
-      beforeDestroy: () => {
+      beforeDestroy: function () {
         if (isNull(this.path)) {
           removeFile(this.path)
         }
       }
-    },
-    instanceMethods: {
-      fullpath: () => {
-        if (!this.path) {
-          return null
-        }
-
-        let realPath = buildPath(this.path)
-
-        return fileExist(realPath) ? realPath : null
-      },
-      format: () => {
-        return {
-          id: this.id,
-          name: this.name,
-          type: this.type,
-          size: this.size,
-          extension: this.extensions
-        }
-      }
-    },
-    classMethods: {
-      storeFile: async (file) => {
-        return store(this.build(), file)
-      },
-      updateFile: async (model, file) => {
-        model = await this.resolveModel(model)
-
-        if (!model) {
-          return null
-        }
-
-        return store(model, file)
-      },
-      resolveModel: async (model) => {
-        if (model instanceof Model) {
-          return model
-        }  
-
-        return await this.findOne(model)
-      }
     }
   }
 )
+
+FileModel.storeFile = async function (file) {
+  return store(this.build(), file)
+}
+
+FileModel.updateFile = async function (model, file) {
+  model = await this.resolveModel(model)
+
+  if (!model) {
+    return null
+  }
+
+  return store(model, file)
+},
+
+FileModel.resolveModel = async function (model) {
+  if (model instanceof Model) {
+    return model
+  }  
+
+  return await this.findOne(model)
+}
+
+FileModel.prototype.fullpath = function () {
+  if (!this.path) {
+    return null
+  }
+
+  let realPath = buildPath(this.path)
+
+  return fileExist(realPath) ? realPath : null
+}
+
+FileModel.prototype.format = function () {
+  return {
+    id: this.id,
+    name: this.name,
+    type: this.type,
+    size: this.size,
+    extension: this.extensions
+  }
+}
 
 module.exports = FileModel

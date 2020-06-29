@@ -2,9 +2,9 @@ const db = require('../app/db')
 
 const UserModel  = require('./user.model')
 const FileModel  = require('./file.model')
-// const TokenModel = require('./token')
+const TokenModel = require('./token.model')
 
-// UserModel.hasMany(TokenModel, { foreignKey: 'uid' })
+UserModel.hasMany(TokenModel, { foreignKey: 'uid' })
 
 db.authenticate()
   .then(() => {
@@ -17,5 +17,5 @@ db.authenticate()
 module.exports = {
   UserModel,
   FileModel,
-  // TokenModel
+  TokenModel
 }

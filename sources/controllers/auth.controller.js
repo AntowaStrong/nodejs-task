@@ -4,9 +4,7 @@ const { isUndefined }           = require('lodash')
 const passwordComplexity        = require('joi-password-complexity')
 const { UserModel, TokenModel } = require('../models')
 
-Joi.extend(phoneNumber)
-
-let validateCredentials = (credentials) => {
+let validateCredentials = (credentials) => {  
   let passwordOptions = {
     min: 8,
     max: 16,
@@ -17,10 +15,12 @@ let validateCredentials = (credentials) => {
     requirementCount: 4
   }
 
+  let phoneRule = Joi.extend(phoneNumber).string().phoneNumber()
+
   let scheme = Joi.object({
     id: Joi.alternatives().try(
-      Joi.string().phoneNumber(),
-      Joi.string().email()
+      Joi.string().email(),
+      phoneRule
     ).required(),
     password: passwordComplexity(passwordOptions).required()
   }) 
@@ -36,15 +36,14 @@ let validateRefresh = (parameters) => {
   return isUndefined(scheme.validate(parameters).error)
 } 
 
-
 module.exports = {
   login: async (request, response) => {
     if (validateCredentials(request.body)) {
-      return response.fail('MISSING_PARAMETERS')
+      return response.fail('WRONG_PARAMETERS')
     }
 
     try {
-      let user = UserModel.findOne({ 
+      let user = await UserModel.findOne({ 
         where: {
           id: request.body.id
         }
@@ -54,7 +53,7 @@ module.exports = {
         return response.fail('WRONG_CREDENTIALS')
       }
       
-      if (!user.checkPassword(request.body.id)) {
+      if (!user.checkPassword(request.body.password)) {
         return response.fail('WRONG_CREDENTIALS')
       }
 
@@ -70,26 +69,36 @@ module.exports = {
         access
       })
     } catch (e) {
-      return response.fail()
+      return response.fail(e.message)
     }
   },
-  logup: (request, response) => {
+  logup: async (request, response) => {
     if (validateCredentials(request.body)) {
-      return response.fail('MISSING_PARAMETERS')
+      return response.fail('WRONG_PARAMETERS')
     }
 
     try {
-      let user = UserModel.create({
+      let user = await UserModel.findOne({
+        where: {
+          id: request.body.id
+        }
+      })
+
+      if (user) {
+        return response.fail('USER_ALREADY_CREATED')
+      }
+
+      let model = await UserModel.create({
         id: request.body.id,
         password: request.body.password
       })
 
-      if (!user) {
+      if (!model) {
         return response.fail('USER_CANT_BE_CREATED')
       }
 
-      let refresh = await TokenModel.generateRefreshToken(user.uid)
-      let access  = await TokenModel.generateAccessToken(refresh, user.uid) 
+      let refresh = await TokenModel.generateRefreshToken(model.uid)
+      let access  = await TokenModel.generateAccessToken(refresh) 
 
       if (!refresh || !access) {
         return response.fail()
@@ -100,10 +109,10 @@ module.exports = {
         access
       })
     } catch (e) {
-      response.fail()
+      response.fail(e.message)
     }
   },
-  logout: (request, response) => { 
+  logout: async (request, response) => { 
     try {
       if (!await TokenModel.invalidateAllBelongsTokens(request.token)) {
         return response.fail()
@@ -111,30 +120,30 @@ module.exports = {
       
       response.success()
     } catch (e) {
-      response.fail()
+      response.fail(e.message)
     }
   },
-  refresh: (request, response) => {    
-    if (validateRefresh(request.body)) {
-      return response.fail()
+  refresh: async (request, response) => {    
+    if (!validateRefresh(request.body)) {
+      return response.fail('WRONG_PARAMETERS')
     }
 
     try {
       if (!await TokenModel.invalidateAllAccessTokens(request.body.refresh)) {
-        return response.fail()
+        return response.fail('INVALID_TOKEN', 403)
       }
 
-      let access = await TokenModel.generateAccessToken(refresh) 
+      let access = await TokenModel.generateAccessToken(request.body.refresh) 
 
       if (!access) {
-        return response.fail()
+        return response.fail('INVALID_TOKEN', 403)
       }
       
       response.success({ 
         access 
       })
     } catch (e) {
-      response.fail()
+      response.fail(e.message)
     }
   }
 }

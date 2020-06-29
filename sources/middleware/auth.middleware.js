@@ -12,7 +12,7 @@ const parse = (request) => {
     return null
   }
 
-  const [scheme = '', token = ''] = header.match(RegExp) || []
+  const [input, scheme = '', token = ''] = header.match(RegExp) || []
 
   if (SCHEME.toLowerCase() !== scheme.toLowerCase()) {
     return null
@@ -38,17 +38,17 @@ module.exports = async (request, response, next) => {
       return response.fail('INVALID_TOKEN', 403) 
     }
 
-    if (!token.validate()) {
+    if (!token.valide()) {
       await token.invalidate()
 
       return response.fail('INVALID_TOKEN', 403) 
     } 
 
-    let user = await UserModel.findOne(
-      {
+    let user = await UserModel.findOne({
+      where: {
         uid: token.uid
       }
-    )
+    })
 
     if (!user) {
       return response.fail('USER_NOT_FOUND', 403) 

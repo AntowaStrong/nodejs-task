@@ -1,7 +1,10 @@
 process.env.NODE_ENV = 'test'
 
 const chai           = require('chai')
+const should         = chai.should()
+const { each }       = require('lodash')
 const chaiHttp       = require('chai-http')
+const { UserModel }  = require('../models')
 const { app, start } = require('../app')
 
 chai.use(chaiHttp)
@@ -13,19 +16,39 @@ const validCredentials = {
   password: 'Passw0rd'
 }
 
-describe('*********** USER ***********', () => {
-  describe('/GET /info', () => {
-    it('info: valid', (done) => {
-      let agent = chai.request(app)
+const tokens = {
+  access: null,
+} 
 
-      agent.post('/singup').send(validCredentials).end((err, res) => {
-        agent.get('/info').chai.request(app) .end((err, res) => {
+describe('*********** USER ***********', () => {
+  before(() => {
+    return new Promise((resolve) => {
+      chai
+        .request(app)
+        .post('/singup')
+        .send(validCredentials)
+        .end((err, res) => {
+          tokens.access = res.body.data.access 
+
+          resolve()
+        })
+    })
+  })
+
+  describe('/GET /info', () => {
+    it('info: valid', (done) => {   
+      chai
+        .request(app)
+        .get('/info')
+        .set('Authorization', 'Bearer ' + tokens.access)
+        .end((err, res) => {
           res.should.have.status(200)
           res.body.should.be.a('object')
-          res.body.should.have.property('id').equal(validCredentials.id)
+          res.body.should.have.property('data')
+          res.body.data.should.have.property('id').equal(validCredentials.id)
+
           done() 
         })
-      })
     })
 
     it('info: invalid', (done) => {
@@ -39,6 +62,26 @@ describe('*********** USER ***********', () => {
           done() 
       })
     })
+  })
+
+  after(async () => {
+    try {
+      let users = await UserModel.findAll({ 
+        where: {
+          id: validCredentials.id
+        }
+      })
+
+      let remove = []
+
+      each(users, (user) => {
+        remove.push(user.destroy())
+      })
+
+      await Promise.allSettled(remove)
+    } catch (e) {
+      console.log(e)
+    }
   })
 })
 
