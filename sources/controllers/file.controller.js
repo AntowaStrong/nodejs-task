@@ -105,11 +105,11 @@ module.exports = {
         }
       })
 
-      if (!file || !file.fullpath()) {
+      if (!file || !await file.fullpath()) {
         response.fail('FILE_NOT_FOUND')
       }
 
-      response.download(file.fullpath(), file.name)
+      response.download(await file.fullpath(), file.name)
     } catch (e) {
       return response.fail(e.message)
     }

@@ -16,7 +16,7 @@ let store = async (model, file) => {
 
   try {
     if (model.fullpath()) {
-      removeFile(model.fullpath()) 
+      await removeFile(model.fullpath()) 
     }
 
     await file.mv(fullpath)  
@@ -55,9 +55,9 @@ const FileModel = db.define('File',
     tableName: 'file',
     timestamps: true,
     hooks: {
-      beforeDestroy: function (file) {
+      beforeDestroy: async function (file) {
         if (file.fullpath()) {
-          removeFile(file.fullpath())
+          await removeFile(file.fullpath())
         }
       }
     }
@@ -86,14 +86,14 @@ FileModel.resolveModel = async function (model) {
   return await this.findOne({ where: model })
 }
 
-FileModel.prototype.fullpath = function () {
+FileModel.prototype.fullpath = async function () {
   if (!this.path) {
     return null
   }
 
   let realPath = buildPath(this.path)
 
-  return fileExist(realPath) ? realPath : null
+  return await fileExist(realPath) ? realPath : null
 }
 
 FileModel.prototype.format = function () {

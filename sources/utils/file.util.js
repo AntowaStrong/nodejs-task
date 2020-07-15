@@ -2,9 +2,9 @@ const fs            = require('fs')
 const path          = require('path')
 const { directory } = require('../config')
 
-let fileExist = (path) => {
+let fileExist = async (path) => {
   try {
-    return fs.existsSync(path)
+    return await fs.exists(path)
   } catch(e) {
     return false
   }
@@ -19,13 +19,13 @@ module.exports = {
 
     return path.resolve(...args)
   },
-  removeFile: (path) => {
-    if (!fileExist(path)) {
+  removeFile: async (path) => {
+    if (!await fileExist(path)) {
       return false
     }
   
     try  { 
-      fs.unlinkSync(path)
+      await fs.unlink(path)
   
       return true
     } catch (e) {
